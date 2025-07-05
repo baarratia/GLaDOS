@@ -1,6 +1,9 @@
 import argparse
 import hashlib
 from pathlib import Path
+import subprocess
+import sys
+import threading
 
 import requests
 import sounddevice as sd  # type: ignore
@@ -9,6 +12,11 @@ from .core.engine import Glados, GladosConfig
 from .TTS import tts_glados
 from .utils import spoken_text_converter as stc
 from .utils.resources import resource_path
+
+# Add chess_logic to path to import the connector
+sys.path.append(str(Path(__file__).resolve().parents[3] / 'chess_logic'))
+from glados_chess_connector import GLaDOSChessConnector
+
 
 DEFAULT_CONFIG = resource_path("configs/glados_config.yaml")
 
@@ -245,6 +253,37 @@ def start(config_path: str | Path = "glados_config.yaml") -> None:
     glados.run()
 
 
+def start_chess_game(config_path: str | Path = "glados_config.yaml") -> None:
+    """
+    Start the GLaDOS voice assistant and the chess game.
+
+    This function loads the GLaDOS configuration from a YAML file, creates a GLaDOS instance,
+    and begins the continuous listening process for voice interactions.
+    """
+    glados_config = GladosConfig.from_yaml(str(config_path))
+    glados = Glados.from_config(glados_config)
+    if glados.announcement:
+        glados.play_announcement()
+
+    # Start the chess connector in a separate thread
+    chess_connector = GLaDOSChessConnector(glados, str(Path(__file__).resolve().parents[3] / 'chess_logic' / 'game_state.json'))
+    threading.Thread(target=chess_connector.watch_game_state, daemon=True).start()
+
+    # Start the chess game in a separate process
+    chess_game_path = str(Path(__file__).resolve().parents[3] / 'chess_logic' / 'chess_game.py')
+    chess_process = subprocess.Popen([sys.executable, chess_game_path])
+
+    def monitor_chess_process(proc, shutdown_event):
+        proc.wait()
+        print("Chess game closed. Shutting down GLaDOS.")
+        shutdown_event.set()
+
+    monitor_thread = threading.Thread(target=monitor_chess_process, args=(chess_process, glados.shutdown_event), daemon=True)
+    monitor_thread.start()
+
+    glados.run()
+
+
 def tui(config_path: str | Path = "glados_config.yaml") -> None:
     """
     Start the GLaDOS voice assistant with a terminal user interface (TUI).
@@ -318,6 +357,15 @@ def main() -> None:
     # TUI command
     tui_parser = subparsers.add_parser("tui", help="Start GLaDOS voice assistant with TUI")
 
+    # Chess command
+    chess_parser = subparsers.add_parser("chess", help="Start GLaDOS voice assistant with chess game")
+    chess_parser.add_argument(
+        "--config",
+        type=str,
+        default=DEFAULT_CONFIG,
+        help=f"Path to configuration file (default: {DEFAULT_CONFIG})",
+    )
+
     # Say command
     say_parser = subparsers.add_parser("say", help="Make GLaDOS speak text")
     say_parser.add_argument("text", type=str, help="Text for GLaDOS to speak")
@@ -332,6 +380,11 @@ def main() -> None:
 
     if args.command == "download":
         download_models()
+    elif args.command == "chess":
+        if models_valid() is False:
+            print("Model files are invalid or missing. Please run 'uv run glados download'")
+            return
+        start_chess_game(args.config)
     else:
         if models_valid() is False:
             print("Model files are invalid or missing. Please run 'uv run glados download'")
