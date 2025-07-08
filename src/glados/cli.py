@@ -5,6 +5,9 @@ from pathlib import Path
 =======
 import subprocess
 import sys
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 import requests
@@ -16,7 +19,11 @@ from .utils import spoken_text_converter as stc
 from .utils.resources import resource_path
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+
+>>>>>>> Stashed changes
 
 
 
@@ -257,7 +264,11 @@ def start(config_path: str | Path = "glados_config.yaml") -> None:
 
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+
+>>>>>>> Stashed changes
 
 
 
@@ -336,7 +347,10 @@ def main() -> None:
     tui_parser = subparsers.add_parser("tui", help="Start GLaDOS voice assistant with TUI")
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
     
 
 >>>>>>> Stashed changes
