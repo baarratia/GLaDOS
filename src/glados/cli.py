@@ -1,14 +1,9 @@
 import argparse
 import hashlib
 from pathlib import Path
-<<<<<<< Updated upstream
-=======
+
 import subprocess
 import sys
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
 import requests
 import sounddevice as sd  # type: ignore
@@ -18,16 +13,7 @@ from .TTS import tts_glados
 from .utils import spoken_text_converter as stc
 from .utils.resources import resource_path
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
 
->>>>>>> Stashed changes
-
-
-
->>>>>>> Stashed changes
 DEFAULT_CONFIG = resource_path("configs/glados_config.yaml")
 
 MODEL_CHECKSUMS = {
@@ -263,16 +249,6 @@ def start(config_path: str | Path = "glados_config.yaml") -> None:
     glados.run()
 
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
-
->>>>>>> Stashed changes
-
-
-
->>>>>>> Stashed changes
 def tui(config_path: str | Path = "glados_config.yaml") -> None:
     """
     Start the GLaDOS voice assistant with a terminal user interface (TUI).
@@ -346,14 +322,6 @@ def main() -> None:
     # TUI command
     tui_parser = subparsers.add_parser("tui", help="Start GLaDOS voice assistant with TUI")
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
-    
-
->>>>>>> Stashed changes
     # Say command
     say_parser = subparsers.add_parser("say", help="Make GLaDOS speak text")
     say_parser.add_argument("text", type=str, help="Text for GLaDOS to speak")
