@@ -1,8 +1,17 @@
 Glados:
   llm_model: "llama3.2"
   completion_url: "http://localhost:11434/api/chat"
+<<<<<<< Updated upstream
   api_key: null  # Add your API key here if needed!
   interruptible: true
+=======
+  llm_model: "llama3.2:3b"
+  api_key: "Bearer your_api_key_here"
+  announcement: "Hello! I'm Bodoke, and I hope not to see so much poop today as the last time..."
+  voice: "glados"
+  # if the assistant can be interrupted mid-sentence
+  interruptible: false
+>>>>>>> Stashed changes
   audio_io: "sounddevice"
   asr_engine: "tdt"
   wake_word: null

@@ -178,31 +178,29 @@ class Glados:
         self.interruptible = interruptible
         self.wake_word = wake_word
         self.announcement = announcement
-        self._messages: list[dict[str, str]] = list(personality_preprompt)
+        self._personality_preprompt = tuple(personality_preprompt)
+        self._messages: list[dict[str, str]] = list(self._personality_preprompt)
 
-        # Initialize spoken text converter, that converts text to spoken text. eg. 12 -> "twelve"
+        # Initialize spoken text converter
         self._stc = stc.SpokenTextConverter()
 
-        # warm up onnx ASR model, this is needed to avoid long pauses on first request
+        # Warm up ASR model
         self._asr_model.transcribe_file(resource_path("data/0.wav"))
 
-        # Initialize events for thread synchronization
-        self.processing_active_event = threading.Event()  # Indicates if input processing is active (ASR + LLM + TTS)
-        self.currently_speaking_event = threading.Event()  # Indicates if the assistant is currently speaking
-        self.shutdown_event = threading.Event()  # Event to signal shutdown of all threads
+        # Initialize events and queues
+        self.processing_active_event = threading.Event()
+        self.currently_speaking_event = threading.Event()
+        self.shutdown_event = threading.Event()
+        self.llm_queue: queue.Queue[str] = queue.Queue()
+        self.tts_queue: queue.Queue[str] = queue.Queue()
+        self.audio_queue: queue.Queue[AudioMessage] = queue.Queue()
 
-        # Initialize queues for inter-thread communication
-        self.llm_queue: queue.Queue[str] = queue.Queue()  # Text from SpeechListener to LLMProcessor
-        self.tts_queue: queue.Queue[str] = queue.Queue()  # Text from LLMProcessor to TTSynthesizer
-        self.audio_queue: queue.Queue[AudioMessage] = queue.Queue()  # AudioMessages from TTSSynthesizer to AudioPlayer
-
-        # Initialize audio input/output system
+        # Initialize audio I/O
         self.audio_io: AudioProtocol = audio_io
         logger.info("Audio input started successfully.")
 
-        # Initialize threads for each component
+        # Initialize and start component threads
         self.component_threads: list[threading.Thread] = []
-
         self.speech_listener = SpeechListener(
             audio_io=self.audio_io,
             llm_queue=self.llm_queue,
@@ -214,11 +212,10 @@ class Glados:
             processing_active_event=self.processing_active_event,
             pause_time=self.PAUSE_TIME,
         )
-
         self.llm_processor = LanguageModelProcessor(
             llm_input_queue=self.llm_queue,
             tts_input_queue=self.tts_queue,
-            conversation_history=self._messages,  # Shared, to be refactored
+            conversation_history=self._messages,
             completion_url=self.completion_url,
             model_name=self.llm_model,
             api_key=self.api_key,
@@ -226,7 +223,6 @@ class Glados:
             shutdown_event=self.shutdown_event,
             pause_time=self.PAUSE_TIME,
         )
-
         self.tts_synthesizer = TextToSpeechSynthesizer(
             tts_input_queue=self.tts_queue,
             audio_output_queue=self.audio_queue,
@@ -235,30 +231,33 @@ class Glados:
             shutdown_event=self.shutdown_event,
             pause_time=self.PAUSE_TIME,
         )
-
         self.speech_player = SpeechPlayer(
             audio_io=self.audio_io,
             audio_output_queue=self.audio_queue,
-            conversation_history=self._messages,  # Shared, to be refactored
+            conversation_history=self._messages,
             tts_sample_rate=self._tts.sample_rate,
             shutdown_event=self.shutdown_event,
             currently_speaking_event=self.currently_speaking_event,
             processing_active_event=self.processing_active_event,
             pause_time=self.PAUSE_TIME,
         )
-
         thread_targets = {
             "SpeechListener": self.speech_listener.run,
             "LLMProcessor": self.llm_processor.run,
             "TTSSynthesizer": self.tts_synthesizer.run,
             "AudioPlayer": self.speech_player.run,
         }
-
         for name, target_func in thread_targets.items():
             thread = threading.Thread(target=target_func, name=name, daemon=True)
             self.component_threads.append(thread)
             thread.start()
             logger.info(f"Orchestrator: {name} thread started.")
+
+    def clear_history(self) -> None:
+        """Resets the conversation history to the initial personality preprompt."""
+        logger.info("Clearing conversation history.")
+        self._messages.clear()
+        self._messages.extend(self._personality_preprompt)
 
     def play_announcement(self, interruptible: bool | None = None) -> None:
         """
